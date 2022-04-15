@@ -24,7 +24,7 @@
               {{ liked.songs.length }} {{ $t('common.songs') }}
             </div>
           </div>
-          <button @click.stop="playLikedSongs">
+          <button @click.stop="openPlayModeTabMenu">
             <svg-icon icon-class="play" />
           </button>
         </div>
@@ -85,7 +85,14 @@
             :class="{ active: currentTab === 'cloudDisk' }"
             @click="updateCurrentTab('cloudDisk')"
           >
-            云盘
+            {{ $t('library.cloudDisk') }}
+          </div>
+          <div
+            class="tab"
+            :class="{ active: currentTab === 'playHistory' }"
+            @click="updateCurrentTab('playHistory')"
+          >
+            {{ $t('library.playHistory.title') }}
           </div>
         </div>
         <button
@@ -98,7 +105,7 @@
           v-show="currentTab === 'cloudDisk'"
           class="tab-button"
           @click="selectUploadFiles"
-          ><svg-icon icon-class="arrow-up-alt" /> 上传歌曲
+          ><svg-icon icon-class="arrow-up-alt" />{{ $t('library.uploadSongs') }}
         </button>
       </div>
 
@@ -144,6 +151,32 @@
           :extra-context-menu-item="['removeTrackFromCloudDisk']"
         />
       </div>
+
+      <div v-show="currentTab === 'playHistory'">
+        <button
+          :class="{
+            'playHistory-button': true,
+            'playHistory-button--selected': playHistoryMode === 'week',
+          }"
+          @click="playHistoryMode = 'week'"
+        >
+          {{ $t('library.playHistory.week') }}
+        </button>
+        <button
+          :class="{
+            'playHistory-button': true,
+            'playHistory-button--selected': playHistoryMode === 'all',
+          }"
+          @click="playHistoryMode = 'all'"
+        >
+          {{ $t('library.playHistory.all') }}
+        </button>
+        <TrackList
+          :tracks="playHistoryList"
+          :column-number="1"
+          type="tracklist"
+        />
+      </div>
     </div>
 
     <input
@@ -163,6 +196,16 @@
       }}</div>
       <div class="item" @click="changePlaylistFilter('liked')">{{
         $t('contextMenu.likedPlaylists')
+      }}</div>
+    </ContextMenu>
+
+    <ContextMenu ref="playModeTabMenu">
+      <div class="item" @click="playLikedSongs">{{
+        $t('library.likedSongs')
+      }}</div>
+      <hr />
+      <div class="item" @click="playIntelligenceList">{{
+        $t('contextMenu.cardiacMode')
       }}</div>
     </ContextMenu>
   </div>
@@ -190,7 +233,7 @@ import MvRow from '@/components/MvRow.vue';
  * @returns {string} The lyric part
  */
 function extractLyricPart(rawLyric) {
-  return rawLyric.split(']')[1].trim();
+  return rawLyric.split(']').pop().trim();
 }
 
 export default {
@@ -202,6 +245,7 @@ export default {
       likedSongs: [],
       lyric: undefined,
       currentTab: 'playlists',
+      playHistoryMode: 'week',
     };
   },
   computed: {
@@ -245,6 +289,14 @@ export default {
       }
       return playlists;
     },
+    playHistoryList() {
+      if (this.show && this.playHistoryMode === 'week') {
+        return this.liked.playHistory.weekData;
+      } else if (this.show && this.playHistoryMode === 'all') {
+        return this.liked.playHistory.allData;
+      }
+      return [];
+    },
   },
   created() {
     setTimeout(() => {
@@ -279,9 +331,17 @@ export default {
       this.$store.dispatch('fetchLikedArtists');
       this.$store.dispatch('fetchLikedMVs');
       this.$store.dispatch('fetchCloudDisk');
+      this.$store.dispatch('fetchPlayHistory');
     },
     playLikedSongs() {
       this.$store.state.player.playPlaylistByID(
+        this.liked.playlists[0].id,
+        'first',
+        true
+      );
+    },
+    playIntelligenceList() {
+      this.$store.state.player.playIntelligenceListById(
         this.liked.playlists[0].id,
         'first',
         true
@@ -326,6 +386,9 @@ export default {
     },
     openPlaylistTabMenu(e) {
       this.$refs.playlistTabMenu.openMenu(e);
+    },
+    openPlayModeTabMenu(e) {
+      this.$refs.playModeTabMenu.openMenu(e);
     },
     changePlaylistFilter(type) {
       this.updateData({ key: 'libraryPlaylistFilter', value: type });
@@ -524,6 +587,35 @@ button.tab-button {
   &:active {
     opacity: 1;
     transform: scale(0.92);
+  }
+}
+
+button.playHistory-button {
+  color: var(--color-text);
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin-bottom: 12px;
+  margin-right: 4px;
+  transition: 0.2s;
+  opacity: 0.68;
+  font-weight: 500;
+  cursor: pointer;
+  &:hover {
+    opacity: 1;
+    background: var(--color-secondary-bg);
+  }
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+button.playHistory-button--selected {
+  color: var(--color-text);
+  background: var(--color-secondary-bg);
+  opacity: 1;
+  font-weight: 700;
+  &:active {
+    transform: none;
   }
 }
 </style>
